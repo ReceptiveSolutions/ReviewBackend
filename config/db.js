@@ -4,12 +4,14 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+const isProduction = process.env.NODE_ENV === 'production';
+
 const pool = new Pool({
-    user: process.env.PG_USER,
-    host: process.env.PG_HOST,
-    database: process.env.PG_DATABASE,
-    password: process.env.PG_PASSWORD,
-    port: process.env.PG_PORT
+    connectionString: process.env.DATABASE_URL,
+    ...(isProduction
+        ? { ssl: { rejectUnauthorized: false } }
+        : {} // no SSL locally
+    ),
 });
 
 pool.connect()
@@ -17,3 +19,4 @@ pool.connect()
     .catch(err => console.error("❌ DB Connection Error:", err));
 
 export default pool;
+

@@ -7,6 +7,7 @@ import session from 'express-session';
 import passport from 'passport';
 import './config/passport.js'; // Google strategy config
 import { PrismaClient } from './generated/prisma/index.js';
+import busineRoutes from './routes/businessRoutes.js'; // Import business routes
 
 // Routes
 import companyRoutes from './routes/companyRoutes.js';
@@ -55,6 +56,7 @@ app.get('/', (req, res) => {
 
 app.use('/api/companies', companyRoutes);
 app.use('/api/auth', userRoutes);
+app.use('/api/business', busineRoutes);
 
 /* ------------------ ERROR HANDLING ------------------ */
 app.use((req, res) => {

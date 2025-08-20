@@ -7,7 +7,7 @@ const prisma = new PrismaClient();
 
 /* ---------- Normal Email/Password Signup ---------- */
 export const signup = async (req, res) => {
-  const { firstName, lastName, email, password } = req.body;
+  const { firstName, lastName, email, password, address } = req.body;
 
   try {
     // Validate required fields
@@ -15,7 +15,7 @@ export const signup = async (req, res) => {
       return res.status(400).json({ error: 'First name, email, and password are required' });
     }
 
-    console.log('Signup request:', { firstName, lastName, email }); // Debug log
+    console.log('Signup request:', { firstName, lastName, email,address }); // Debug log
 
     // Check if user exists
     const existingUser = await prisma.users.findUnique({
@@ -36,6 +36,7 @@ export const signup = async (req, res) => {
         last_name: lastName || null,
         email: email,
         password: hashedPassword,
+        address: address || null,
         google_auth: false,
         status: 'active',
         type: 'normal',
@@ -230,3 +231,163 @@ export const getProfile = async (req, res) => {
     res.status(500).json({ error: 'Something went wrong' });
   }
 };
+
+
+
+/* ---------- Get User By ID ---------- */
+export const getUserById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const user = await prisma.users.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        first_name: true,
+        last_name: true,
+        email: true,
+        address: true,
+        google_auth: true,
+        status: true,
+        type: true,
+        subscription: true
+      }
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({ user });
+  } catch (error) {
+    console.error('Get user by ID error:', error);
+    res.status(500).json({ error: 'Something went wrong' });
+  }
+};
+
+/* ---------- Get All Users ---------- */
+export const getAllUsers = async (req, res) => {
+  try {
+    const users = await prisma.users.findMany({
+      select: {
+        id: true,
+        first_name: true,
+        last_name: true,
+        email: true,
+        address: true,
+        google_auth: true,
+        status: true,
+        type: true,
+        subscription: true
+      }
+    });
+
+    res.json({ users });
+  } catch (error) {
+    console.error('Get all users error:', error);
+    res.status(500).json({ error: 'Something went wrong' });
+  }
+};
+
+/* ---------- Update User ---------- */
+export const updateUser = async (req, res) => {
+  const { id } = req.params;
+  const { first_name, last_name, email, password, address, aadhar_num, pan_num } = req.body;
+
+  console.log('Request Body:', req.body);
+  console.log('Request Files:', req.files);
+
+  try {
+    // Verify JWT token
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) {
+      return res.status(401).json({ error: 'No token provided' });
+    }
+    jwt.verify(token, process.env.JWT_SECRET);
+
+    // Validate required fields
+    if (!first_name || !email || !aadhar_num || !pan_num) {
+      return res.status(400).json({ error: 'Required fields missing' });
+    }
+
+    // Validate field formats
+    if (first_name.trim().length < 1) {
+      return res.status(400).json({ error: 'First name cannot be empty or only spaces' });
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ error: 'Invalid email format' });
+    }
+    if (password && password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    }
+    if (!/^\d{12}$/.test(aadhar_num)) {
+      return res.status(400).json({ error: 'Aadhar number must be 12 digits' });
+    }
+    if (!/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(pan_num)) {
+      return res.status(400).json({ error: 'Invalid PAN number format' });
+    }
+
+    // Check if email is taken by another user
+    const existingUser = await prisma.users.findFirst({
+      where: { email, id: { not: id } },
+    });
+    if (existingUser) {
+      return res.status(400).json({ error: 'Email already in use by another account' });
+    }
+
+    // Prepare update data
+    const updateData = {
+      first_name: first_name.trim(),
+      last_name: last_name ? last_name.trim() : null,
+      email,
+      address: address || null,
+      aadhar_num,
+      pan_num,
+      type: 'business',
+      aadhar_img: req.files?.aadhar_img ? req.files.aadhar_img[0].filename : undefined,
+      pan_img: req.files?.pan_img ? req.files.pan_img[0].filename : undefined,
+      prof_img: req.files?.prof_img ? req.files.prof_img[0].filename : undefined,
+    };
+
+    // Hash password if provided
+    if (password) {
+      updateData.password = await bcrypt.hash(password, 10);
+    }
+
+    // Update user
+    const updatedUser = await prisma.users.update({
+      where: { id },
+      data: updateData,
+      select: {
+        id: true,
+        first_name: true,
+        last_name: true,
+        email: true,
+        address: true,
+        aadhar_num: true,
+        pan_num: true,
+        aadhar_img: true,
+        pan_img: true,
+        prof_img: true,
+        google_auth: true,
+        status: true,
+        type: true,
+        subscription: true,
+      },
+    });
+
+    res.status(200).json({
+      message: 'Business details updated successfully',
+      user: updatedUser,
+    });
+  } catch (error) {
+    console.error('Update Business Error:', error);
+    if (error.code === 'P2025') {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({ error: 'Invalid or expired token' });
+    }
+    res.status(500).json({ error: 'Something went wrong', details: error.message });
+  }
+}

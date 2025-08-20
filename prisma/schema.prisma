@@ -19,9 +19,17 @@ model users {
   first_name   String  @db.VarChar(100)
   last_name    String? @db.VarChar(100)
   email        String  @unique @db.VarChar(255)
+  address      String? @db.VarChar
   password     String  @db.Text
   google_auth  Boolean @default(false)
   status       String  @default("active") @db.VarChar(20)
   type         String  @default("normal") @db.VarChar(20)
   subscription String  @default("free") @db.VarChar(50)
+  noOfComp      Int      @default(0)
+  CompaniesId   Int?
+  aadhar_num    String?  @unique @db.VarChar(12)
+  pan_num       String?  @unique @db.VarChar(10)
+  aadhar_img    String?  @db.Text
+  pan_img       String?  @db.Text
+  prof_img      String?  @db.Text
 }

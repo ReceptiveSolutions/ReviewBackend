@@ -24,7 +24,7 @@ const prisma = new PrismaClient();
 /* ------------------ MIDDLEWARE ------------------ */
 app.use(cors());
 app.use(express.json());
-
+app.use('/uploads', express.static('uploads'));
 // Session middleware (required for Passport session support)
 app.use(session({
     secret: process.env.SESSION_SECRET || 'supersecret',

@@ -102,7 +102,9 @@ export const login = async (req, res) => {
         email: user.email,
         firstName: user.first_name,
         lastName: user.last_name,
-        type: user.type
+        type: user.type,
+        prof_img: user.prof_img, // Include profile image
+        status: user.status,
       },
       process.env.JWT_SECRET,
       { expiresIn: '1h' }
@@ -117,7 +119,9 @@ export const login = async (req, res) => {
         lastName: user.last_name,
         email: user.email,
         type: user.type,
-        subscription: user.subscription
+        subscription: user.subscription,
+        prof_img: user.prof_img, // Include profile image
+        status: user.status, // Include status
       },
       redirectTo: '/' // Frontend will use this to redirect to home
     });
@@ -187,7 +191,7 @@ export const googleAuthCallback = async (req, res) => {
         type: user.type
       },
       process.env.JWT_SECRET,
-      { expiresIn: '1h' }
+      { expiresIn: '10h' }
     );
 
     console.log('Google authentication successful');
@@ -250,7 +254,15 @@ export const getUserById = async (req, res) => {
         google_auth: true,
         status: true,
         type: true,
-        subscription: true
+        subscription: true,
+        noOfComp: true,
+        CompaniesId: true,
+        aadhar_num: true,
+        pan_num: true,
+        aadhar_img: true,
+        pan_img: true,
+        prof_img: true,
+        // createdAt: true,
       }
     });
 
@@ -261,7 +273,7 @@ export const getUserById = async (req, res) => {
     res.json({ user });
   } catch (error) {
     console.error('Get user by ID error:', error);
-    res.status(500).json({ error: 'Something went wrong' });
+    res.status(500).json({ error: 'Something went wrong', message: error.message });
   }
 };
 
@@ -278,7 +290,15 @@ export const getAllUsers = async (req, res) => {
         google_auth: true,
         status: true,
         type: true,
-        subscription: true
+        subscription: true,
+        noOfComp: true,
+        CompaniesIds: true,
+        aadhar_num: true,
+        pan_num: true,
+        aadhar_img: true,
+        pan_img: true,
+        prof_img: true,
+        // createdAt: true,
       }
     });
 
@@ -391,3 +411,56 @@ export const updateUser = async (req, res) => {
     res.status(500).json({ error: 'Something went wrong', details: error.message });
   }
 }
+
+// Route to get user data
+export const checkAuthOnLoad = async (req, res) => {
+  try {
+    // Extract token from Authorization header
+    const token = req.headers.authorization?.split(" ")[1];
+    if (!token) {
+      return res.status(401).json({ error: "No token provided" });
+    }
+
+    // Verify token (replace 'your_jwt_secret' with your actual JWT secret)
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || "your_jwt_secret");
+
+    // Fetch user data using Prisma
+    const user = await prisma.users.findUnique({
+      where: {
+        id: decoded.id, // Assuming the token payload contains the user ID
+      },
+      select: {
+        id: true,
+        first_name: true,
+        last_name: true,
+        email: true,
+        type:true,
+        prof_img: true, // Include profile image if available
+        status: true,
+        subscription: true, // Include subscription status
+      },
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Format response to match frontend expectations
+    res.json({
+      id: user.id,
+      firstName: user.first_name,
+      lastName: user.last_name,
+      email: user.email,
+      type: user.type,
+      prof_img: user.prof_img, 
+      status: user.status,
+      subscription: user.subscription, // Default to 'free' if not set
+    });
+  } catch (error) {
+    console.error("Get user error:", error);
+    if (error.name === "JsonWebTokenError") {
+      return res.status(401).json({ error: "Invalid token" });
+    }
+    res.status(500).json({ error: "Something went wrong" });
+  }
+};

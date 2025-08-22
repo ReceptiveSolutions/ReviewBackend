@@ -107,7 +107,7 @@ export const login = async (req, res) => {
         status: user.status,
       },
       process.env.JWT_SECRET,
-      { expiresIn: '1h' }
+      { expiresIn: '10h' }
     );
 
     res.json({ 

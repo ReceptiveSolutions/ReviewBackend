@@ -5,7 +5,8 @@ import {
     deleteComp,
     updateComp,
     getbyIdComp,
-    verifyComp
+    verifyComp,
+    getbyUserIdCompany
 } from "../controllers/companyController.js"; // adjust path if needed
 import { upload } from '../middleware/uploads.js';
 const router = express.Router();
@@ -15,6 +16,7 @@ router.get("/all", getall);
 
 // GET company by ID
 router.get("/:id", getbyIdComp);
+router.get('/user/:userId', getbyUserIdCompany);// Added for consistency with other routes
 
 // POST new company
 router.post("/register",upload.fields([{name:'comp_profile_img', maxCount:1}]) ,addComp);

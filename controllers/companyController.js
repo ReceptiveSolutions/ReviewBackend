@@ -470,6 +470,32 @@ export const getbyIdComp= async (req, res) => {
     }
 };
 
+export const getbyUserIdCompany = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!userId || !uuidRegex.test(userId)) {
+      return res.status(400).json({ error: 'Invalid user ID' });
+    }
+
+    const result = await pool.query(
+      'SELECT * FROM companies WHERE userid = $1',
+      [userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'No company found for this user' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Error fetching company by user ID:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+
 
 export const verifyComp= async (req, res) => {
     try {

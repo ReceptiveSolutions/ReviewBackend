@@ -214,3 +214,165 @@ export const getCompanyRatingStats = async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 };
+
+export const dislikeReview = async (req, res) => {
+  try {
+    const { reviewId } = req.params;
+    const { userId } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ error: 'User ID is required' });
+    }
+
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(reviewId) || !uuidRegex.test(userId)) {
+      return res.status(400).json({ error: 'Invalid review ID or user ID' });
+    }
+
+    const userCheck = await pool.query('SELECT 1 FROM users WHERE id = $1', [userId]);
+    if (userCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const result = await pool.query(
+      'INSERT INTO reviewDislikes (review_id, user_id) VALUES ($1, $2) RETURNING *',
+      [reviewId, userId]
+    );
+
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    if (err.code === '23505') {
+      return res.status(409).json({ error: 'You have already disliked this review' });
+    }
+    console.error('Error disliking review:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const removeDislike = async (req, res) => {
+  try {
+    const { reviewId } = req.params;
+    const { userId } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ error: 'User ID is required' });
+    }
+
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(reviewId) || !uuidRegex.test(userId)) {
+      return res.status(400).json({ error: 'Invalid review ID or user ID' });
+    }
+
+    const userCheck = await pool.query('SELECT 1 FROM users WHERE id = $1', [userId]);
+    if (userCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const result = await pool.query(
+      'DELETE FROM reviewDislikes WHERE review_id = $1 AND user_id = $2 RETURNING *',
+      [reviewId, userId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Dislike not found' });
+    }
+
+    res.status(200).json({ message: 'Dislike removed' });
+  } catch (err) {
+    console.error('Error removing dislike:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const editReview = async (req, res) => {
+  try {
+    const { reviewId } = req.params;
+    const { userId, rating, text } = req.body;
+
+    if (!userId || !text) {
+      return res.status(400).json({ error: 'User ID and text are required' });
+    }
+
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(reviewId) || !uuidRegex.test(userId)) {
+      return res.status(400).json({ error: 'Invalid review ID or user ID' });
+    }
+
+    if (rating !== undefined && (rating < 1 || rating > 5)) {
+      return res.status(400).json({ error: 'Rating must be between 1 and 5' });
+    }
+
+    const userCheck = await pool.query('SELECT 1 FROM users WHERE id = $1', [userId]);
+    if (userCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const reviewCheck = await pool.query('SELECT parent_id, user_id FROM reviews WHERE id = $1', [reviewId]);
+    if (reviewCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Review not found' });
+    }
+
+    const review = reviewCheck.rows[0];
+    if (review.user_id !== userId) {
+      return res.status(403).json({ error: 'Unauthorized to edit this review' });
+    }
+
+    const isReply = review.parent_id !== null;
+    const query = isReply
+      ? 'UPDATE reviews SET text = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *'
+      : 'UPDATE reviews SET rating = $1, text = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3 RETURNING *';
+    const values = isReply ? [text, reviewId] : [rating || reviewCheck.rows[0].rating, text, reviewId];
+
+    const result = await pool.query(query, values);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Review not found' });
+    }
+
+    res.status(200).json(result.rows[0]);
+  } catch (err) {
+    console.error('Error editing review:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const deleteReview = async (req, res) => {
+  try {
+    const { reviewId } = req.params;
+    const { userId } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ error: 'User ID is required' });
+    }
+
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(reviewId) || !uuidRegex.test(userId)) {
+      return res.status(400).json({ error: 'Invalid review ID or user ID' });
+    }
+
+    const userCheck = await pool.query('SELECT 1 FROM users WHERE id = $1', [userId]);
+    if (userCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const reviewCheck = await pool.query('SELECT user_id FROM reviews WHERE id = $1', [reviewId]);
+    if (reviewCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Review not found' });
+    }
+
+    if (reviewCheck.rows[0].user_id !== userId) {
+      return res.status(403).json({ error: 'Unauthorized to delete this review' });
+    }
+
+    const result = await pool.query('DELETE FROM reviews WHERE id = $1 RETURNING *', [reviewId]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Review not found' });
+    }
+
+    res.status(200).json({ message: 'Review deleted successfully' });
+  } catch (err) {
+    console.error('Error deleting review:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};

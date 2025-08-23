@@ -1,27 +1,43 @@
+
 import express from 'express';
 import {
   addReview,
   addReply,
   likeReview,
   unlikeReview,
+  editReview,
+  deleteReview,
+  dislikeReview,
+  removeDislike,
   getReviewsForCompany,
   getCompanyRatingStats
 } from '../controllers/reviewController.js';
-// import { protect } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
-// Add a top-level review to a company (authenticated)
-router.post('/',  addReview);
+// Add a top-level review to a company
+router.post('/', addReview);
 
-// Add a reply to a review (authenticated)
+// Add a reply to a review
 router.post('/:reviewId/reply', addReply);
 
-// Like a review (authenticated)
+// Edit a review
+router.put('/:reviewId', editReview);
+
+// Delete a review
+router.delete('/:reviewId', deleteReview);
+
+// Like a review
 router.post('/:reviewId/like', likeReview);
 
-// Unlike a review (authenticated)
+// Unlike a review
 router.delete('/:reviewId/like', unlikeReview);
+
+// Dislike a review
+router.post('/:reviewId/dislike', dislikeReview);
+
+// Remove dislike from a review
+router.delete('/:reviewId/dislike', removeDislike);
 
 // Get all reviews for a company (nested with replies)
 router.get('/company/:companyId', getReviewsForCompany);

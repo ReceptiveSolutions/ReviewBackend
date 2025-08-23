@@ -22,7 +22,7 @@ router.get('/user/:userId', getbyUserIdCompany);// Added for consistency with ot
 router.post("/register",upload.fields([{name:'comp_profile_img', maxCount:1}]) ,addComp);
 
 // PATCH update company
-router.put("/:id", upload.fields([{name:'comp-profile_img', maxCount:1}]) ,updateComp);
+router.put("/:id", upload.fields([{name:'comp_profile_img', maxCount:1}]) ,updateComp);
 
 // PATCH verify company (admin)
 router.put("/:id/verify", verifyComp);

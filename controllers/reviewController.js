@@ -142,6 +142,54 @@ export const unlikeReview = async (req, res) => {
   }
 };
 
+// export const getReviewsForCompany = async (req, res) => {
+//   try {
+//     const { companyId } = req.params;
+
+//     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+//     if (!uuidRegex.test(companyId)) {
+//       return res.status(400).json({ error: 'Invalid company ID' });
+//     }
+
+//     const result = await pool.query(
+//       'SELECT * FROM reviews WHERE company_id = $1 ORDER BY created_at ASC',
+//       [companyId]
+//     );
+
+//     const reviews = result.rows;
+//     const reviewMap = {};
+//     const topLevelReviews = [];
+
+//     reviews.forEach(review => {
+//       review.replies = [];
+//       reviewMap[review.id] = review;
+//     });
+
+//     reviews.forEach(review => {
+//       if (review.parent_id) {
+//         if (reviewMap[review.parent_id]) {
+//           reviewMap[review.parent_id].replies.push(review);
+//         }
+//       } else {
+//         topLevelReviews.push(review);
+//       }
+//     });
+
+//     for (const review of reviews) {
+//       const likesResult = await pool.query(
+//         'SELECT COUNT(*) as like_count FROM reviewLikes WHERE review_id = $1',
+//         [review.id]
+//       );
+//       review.like_count = parseInt(likesResult.rows[0].like_count);
+//     }
+
+//     res.status(200).json(topLevelReviews);
+//   } catch (err) {
+//     console.error('Error fetching reviews:', err);
+//     res.status(500).json({ error: 'Internal server error' });
+//   }
+// };
+
 export const getReviewsForCompany = async (req, res) => {
   try {
     const { companyId } = req.params;
@@ -151,8 +199,23 @@ export const getReviewsForCompany = async (req, res) => {
       return res.status(400).json({ error: 'Invalid company ID' });
     }
 
+    // Fetch company info (profile img, etc.)
+    const companyResult = await pool.query(
+      'SELECT id, name, comp_profile_img FROM companies WHERE id = $1',
+      [companyId]
+    );
+    if (companyResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Company not found' });
+    }
+    const company = companyResult.rows[0];
+
+    // Fetch reviews with user details (including profile image)
     const result = await pool.query(
-      'SELECT * FROM reviews WHERE company_id = $1 ORDER BY created_at ASC',
+      `SELECT r.*, u.prof_img 
+       FROM reviews r
+       JOIN users u ON r.user_id = u.id
+       WHERE r.company_id = $1
+       ORDER BY r.created_at ASC`,
       [companyId]
     );
 
@@ -175,6 +238,7 @@ export const getReviewsForCompany = async (req, res) => {
       }
     });
 
+    // Attach like count for each review
     for (const review of reviews) {
       const likesResult = await pool.query(
         'SELECT COUNT(*) as like_count FROM reviewLikes WHERE review_id = $1',
@@ -183,7 +247,14 @@ export const getReviewsForCompany = async (req, res) => {
       review.like_count = parseInt(likesResult.rows[0].like_count);
     }
 
-    res.status(200).json(topLevelReviews);
+    res.status(200).json({
+      company: {
+        id: company.id,
+        name: company.name,
+        comp_profile_img: company.comp_profile_img,
+      },
+      reviews: topLevelReviews,
+    });
   } catch (err) {
     console.error('Error fetching reviews:', err);
     res.status(500).json({ error: 'Internal server error' });

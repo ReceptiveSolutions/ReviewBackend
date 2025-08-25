@@ -292,7 +292,7 @@ export const getAllUsers = async (req, res) => {
         type: true,
         subscription: true,
         noOfComp: true,
-        CompaniesIds: true,
+        CompaniesId: true,
         aadhar_num: true,
         pan_num: true,
         aadhar_img: true,

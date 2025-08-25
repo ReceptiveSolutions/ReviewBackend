@@ -211,7 +211,7 @@ export const getReviewsForCompany = async (req, res) => {
 
     // Fetch reviews with user details (including profile image)
     const result = await pool.query(
-      `SELECT r.*, u.prof_img 
+      `SELECT r.*, u.prof_img, u.first_name, last_name
        FROM reviews r
        JOIN users u ON r.user_id = u.id
        WHERE r.company_id = $1

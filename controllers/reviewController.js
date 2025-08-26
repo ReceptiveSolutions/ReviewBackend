@@ -1,39 +1,39 @@
 import pool from '../config/db.js';
 
-export const addReview = async (req, res) => {
-  try {
-    const { companyId, userId, rating, text } = req.body;
+// export const addReview = async (req, res) => {
+//   try {
+//     const { companyId, userId, rating, text } = req.body;
 
-    if (!companyId || !userId || !rating || !text) {
-      return res.status(400).json({ error: 'Company ID, user ID, rating, and text are required' });
-    }
+//     if (!companyId || !userId || !rating || !text) {
+//       return res.status(400).json({ error: 'Company ID, user ID, rating, and text are required' });
+//     }
 
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(companyId) || !uuidRegex.test(userId)) {
-      return res.status(400).json({ error: 'Invalid company ID or user ID' });
-    }
+//     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+//     if (!uuidRegex.test(companyId) || !uuidRegex.test(userId)) {
+//       return res.status(400).json({ error: 'Invalid company ID or user ID' });
+//     }
 
-    if (rating < 1 || rating > 5) {
-      return res.status(400).json({ error: 'Rating must be between 1 and 5' });
-    }
+//     if (rating < 1 || rating > 5) {
+//       return res.status(400).json({ error: 'Rating must be between 1 and 5' });
+//     }
 
-    // Verify user exists
-    const userCheck = await pool.query('SELECT 1 FROM users WHERE id = $1', [userId]);
-    if (userCheck.rows.length === 0) {
-      return res.status(404).json({ error: 'User not found' });
-    }
+//     // Verify user exists
+//     const userCheck = await pool.query('SELECT 1 FROM users WHERE id = $1', [userId]);
+//     if (userCheck.rows.length === 0) {
+//       return res.status(404).json({ error: 'User not found' });
+//     }
 
-    const result = await pool.query(
-      'INSERT INTO reviews (company_id, user_id, rating, text) VALUES ($1, $2, $3, $4) RETURNING *',
-      [companyId, userId, rating, text]
-    );
+//     const result = await pool.query(
+//       'INSERT INTO reviews (company_id, user_id, rating, text) VALUES ($1, $2, $3, $4) RETURNING *',
+//       [companyId, userId, rating, text]
+//     );
 
-    res.status(201).json(result.rows[0]);
-  } catch (err) {
-    console.error('Error adding review:', err);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-};
+//     res.status(201).json(result.rows[0]);
+//   } catch (err) {
+//     console.error('Error adding review:', err);
+//     res.status(500).json({ error: 'Internal server error' });
+//   }
+// };
 
 export const addReply = async (req, res) => {
   try {
@@ -584,3 +584,125 @@ export const getCompanyRatingDistribution = async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 };
+
+
+// Helper function to update company avg_rating
+const updateCompanyAvgRating = async (companyId) => {
+  try {
+    const result = await pool.query(
+      'SELECT AVG(rating) as avg_rating FROM reviews WHERE company_id = $1 AND parent_id IS NULL AND rating IS NOT NULL',
+      [companyId]
+    );
+    const avgRating = result.rows[0].avg_rating ? parseFloat(result.rows[0].avg_rating).toFixed(1) : 0.0;
+
+    await pool.query(
+      'UPDATE companies SET avg_rating = $1 WHERE id = $2',
+      [avgRating, companyId]
+    );
+  } catch (err) {
+    console.error('Error updating company avg_rating:', err);
+    throw err; // Let the caller handle the error
+  }
+};
+
+export const addReview = async (req, res) => {
+  try {
+    const { companyId, userId, rating, text } = req.body;
+
+    if (!companyId || !userId || !rating || !text) {
+      return res.status(400).json({ error: 'Company ID, user ID, rating, and text are required' });
+    }
+
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(companyId) || !uuidRegex.test(userId)) {
+      return res.status(400).json({ error: 'Invalid company ID or user ID' });
+    }
+
+    if (rating < 1 || rating > 5) {
+      return res.status(400).json({ error: 'Rating must be between 1 and 5' });
+    }
+
+    // Verify user exists
+    const userCheck = await pool.query('SELECT 1 FROM users WHERE id = $1', [userId]);
+    if (userCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Verify company exists
+    const companyCheck = await pool.query('SELECT 1 FROM companies WHERE id = $1', [companyId]);
+    if (companyCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Company not found' });
+    }
+
+    // Insert review
+    const result = await pool.query(
+      'INSERT INTO reviews (company_id, user_id, rating, text) VALUES ($1, $2, $3, $4) RETURNING *',
+      [companyId, userId, rating, text]
+    );
+
+    // Update company's avg_rating
+    await updateCompanyAvgRating(companyId);
+
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    console.error('Error adding review:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+// export const editReview = async (req, res) => {
+//   try {
+//     const { reviewId } = req.params;
+//     const { userId, rating, text } = req.body;
+
+//     if (!userId || !text) {
+//       return res.status(400).json({ error: 'User ID and text are required' });
+//     }
+
+//     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+//     if (!uuidRegex.test(reviewId) || !uuidRegex.test(userId)) {
+//       return res.status(400).json({ error: 'Invalid review ID or user ID' });
+//     }
+
+//     if (rating !== undefined && (rating < 1 || rating > 5)) {
+//       return res.status(400).json({ error: 'Rating must be between 1 and 5' });
+//     }
+
+//     const userCheck = await pool.query('SELECT 1 FROM users WHERE id = $1', [userId]);
+//     if (userCheck.rows.length === 0) {
+//       return res.status(404).json({ error: 'User not found' });
+//     }
+
+//     const reviewCheck = await pool.query('SELECT parent_id, user_id, company_id FROM reviews WHERE id = $1', [reviewId]);
+//     if (reviewCheck.rows.length === 0) {
+//       return res.status(404).json({ error: 'Review not found' });
+//     }
+
+//     const review = reviewCheck.rows[0];
+//     if (review.user_id !== userId) {
+//       return res.status(403).json({ error: 'Unauthorized to edit this review' });
+//     }
+
+//     const isReply = review.parent_id !== null;
+//     const query = isReply
+//       ? 'UPDATE reviews SET text = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *'
+//       : 'UPDATE reviews SET rating = $1, text = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3 RETURNING *';
+//     const values = isReply ? [text, reviewId] : [rating || reviewCheck.rows[0].rating, text, reviewId];
+
+//     const result = await pool.query(query, values);
+
+//     if (result.rows.length === 0) {
+//       return res.status(404).json({ error: 'Review not found' });
+//     }
+
+//     // Update company's avg_rating if it's a top-level review
+//     if (!isReply) {
+//       await updateCompanyAvgRating(review.company_id);
+//     }
+
+//     res.status(200).json(result.rows[0]);
+//   } catch (err) {
+//     console.error('Error editing review:', err);
+//     res.status(500).json({ error: 'Internal server error' });
+//   }
+// };

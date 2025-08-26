@@ -10,7 +10,8 @@ import {
   dislikeReview,
   removeDislike,
   getReviewsForCompany,
-  getCompanyRatingStats
+  getCompanyRatingStats,
+  deleteReply
 } from '../controllers/reviewController.js';
 
 const router = express.Router();
@@ -20,6 +21,7 @@ router.post('/', addReview);
 
 // Add a reply to a review
 router.post('/:reviewId/reply', addReply);
+router.delete('/:reviewId/reply', deleteReply);
 
 // Edit a review
 router.put('/:reviewId', editReview);

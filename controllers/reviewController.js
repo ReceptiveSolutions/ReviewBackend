@@ -551,3 +551,36 @@ export const deleteReview = async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 };
+
+export const getCompanyRatingDistribution = async (req, res) => {
+  try {
+    const { companyId } = req.params;
+
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(companyId)) {
+      return res.status(400).json({ error: 'Invalid company ID' });
+    }
+
+    const result = await pool.query(
+      'SELECT rating, COUNT(*) as count FROM reviews WHERE company_id = $1 AND parent_id IS NULL AND rating IS NOT NULL GROUP BY rating ORDER BY rating DESC',
+      [companyId]
+    );
+
+    const ratingDistribution = {
+      '5': 0,
+      '4': 0,
+      '3': 0,
+      '2': 0,
+      '1': 0
+    };
+
+    result.rows.forEach(row => {
+      ratingDistribution[row.rating.toString()] = parseInt(row.count);
+    });
+
+    res.status(200).json(ratingDistribution);
+  } catch (err) {
+    console.error('Error fetching rating distribution:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+};

@@ -11,6 +11,7 @@ import {
   removeDislike,
   getReviewsForCompany,
   getCompanyRatingStats,
+  getCompanyRatingDistribution,
   deleteReply
 } from '../controllers/reviewController.js';
 
@@ -46,5 +47,7 @@ router.get('/company/:companyId', getReviewsForCompany);
 
 // Get rating stats for a company
 router.get('/company/:companyId/stats', getCompanyRatingStats);
+
+router.get('/company/:companyId/ratings', getCompanyRatingDistribution);
 
 export default router;

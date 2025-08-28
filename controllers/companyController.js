@@ -488,7 +488,7 @@ export const getbyUserIdCompany = async (req, res) => {
       return res.status(404).json({ error: 'No company found for this user' });
     }
 
-    res.json(result.rows[0]);
+    res.json(result.rows);
   } catch (err) {
     console.error('Error fetching company by user ID:', err);
     res.status(500).json({ error: 'Internal server error' });
